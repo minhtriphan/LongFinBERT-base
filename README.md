@@ -12,7 +12,7 @@ git clone https://github.com/minhtriphan/LongBERT.git
 cd LongBERT
 ```
 
-1. Download the datasets
+2. Download the datasets
 ```
 kaggle datasets download -d shinomoriaoshi/10-x-filings-train-part-1
 kaggle datasets download -d shinomoriaoshi/10x-filings-train-part-2
@@ -23,7 +23,12 @@ unzip 10x-filings-train-part-2.zip -d data/train_part_2
 unzip 10x-filings-valid.zip -d data/valid
 ```
 
-2. Run
+3. Install requirements
+```
+pip install -r requirement.txt
+```
+
+3. Run
 ```
 python main.py \
     --seed 1 \
