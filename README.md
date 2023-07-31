@@ -6,6 +6,12 @@ Some remarks:
 * 
 
 Instructions to train the model
+1. Clone the repo and change the directory
+```
+git clone https://github.com/minhtriphan/LongBERT.git
+cd LongBERT
+```
+
 1. Download the datasets
 ```
 kaggle datasets download -d shinomoriaoshi/10-x-filings-train-part-1
@@ -22,6 +28,7 @@ unzip 10x-filings-valid.zip -d data/valid
 python main.py \
     --seed 1 \
     --ver v1a \
+    --device cuda \
     --use_log 0 \
     --use_tqdm 1 \
     --backbone ./tokenizer \
@@ -29,5 +36,5 @@ python main.py \
     --nepochs 5 \
     --batch_size 4 \
     --train_data_dir /notebooks/data/train_part_1 \
-    --valid_data_dir /notebooks/data/train_part_1
+    --valid_data_dir /notebooks/data/valid
 ```
