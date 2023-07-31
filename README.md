@@ -13,6 +13,7 @@ kaggle datasets download -d shinomoriaoshi/10x-filings-train-part-2
 kaggle datasets download -d shinomoriaoshi/10x-filings-valid
 mkdir data
 unzip 10-x-filings-train-part-1.zip -d data/train_part_1
+unzip 10x-filings-train-part-2.zip -d data/train_part_1
 unzip 10x-filings-valid.zip -d data/valid
 ```
 
