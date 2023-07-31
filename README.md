@@ -8,15 +8,17 @@ Some remarks:
 Instructions to train the model
 1. Download the datasets
 ```
-!kaggle datasets download -d shinomoriaoshi/10-x-filings-train-part-1
-!kaggle datasets download -d shinomoriaoshi/10x-filings-valid
-!unzip 10-x-filings-train-part-1.zip -d data/train_part_1
-!unzip 10x-filings-valid.zip -d data/valid
+kaggle datasets download -d shinomoriaoshi/10-x-filings-train-part-1
+kaggle datasets download -d shinomoriaoshi/10x-filings-train-part-2
+kaggle datasets download -d shinomoriaoshi/10x-filings-valid
+mkdir data
+unzip 10-x-filings-train-part-1.zip -d data/train_part_1
+unzip 10x-filings-valid.zip -d data/valid
 ```
 
 2. Run
 ```
-!python main.py \
+python main.py \
     --seed 1 \
     --ver v1a \
     --use_log 0 \
