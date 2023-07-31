@@ -33,7 +33,7 @@ class Config(object):
         self.max_len = args.max_len
         # Training
         self.apex = bool(args.apex)
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = torch.device(args.device)
         self.nepochs = args.nepochs
         self.batch_size = args.batch_size
         self.num_workers = os.cpu_count()

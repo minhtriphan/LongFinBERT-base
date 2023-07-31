@@ -16,7 +16,8 @@ if __name__ == '__main__':
     parser.add_argument('--ver', type = str, default = 'v1a', help = 'The name of the current version.')
     parser.add_argument('--use_log', type = int, default = 0, help = 'Whether we log the training process or not, only takes 0 or 1.')
     parser.add_argument('--use_tqdm', type = int, default = 0, help = 'Whether we use loop tracking or not, only takes 0 or 1.')
-    
+    parser.add_argument('--device', type = str, default = 'cpu', help = 'The training device.')
+
     # Model
     parser.add_argument('--backbone', type = str, default = '.', help = 'The checkpoint of the tokenizer.')
     
