@@ -29,7 +29,7 @@ unzip 10x-filings-valid.zip -d data/valid
 ```
 pip install -r requirement.txt
 ```
-
+_(In some cases with entirely new environments, some more packages are required to be installed)_
 3. Run
 ```
 python main.py \
