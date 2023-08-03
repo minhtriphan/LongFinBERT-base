@@ -35,8 +35,8 @@ pip install -r requirement.txt
 python main.py \
     --seed 1 \
     --ver v1a \
-    --device cuda \
-    --use_log 0 \
+    --device cuda:0 \
+    --use_log 1 \
     --use_tqdm 1 \
     --backbone ./tokenizer \
     --max_len 10_000 \
