@@ -24,6 +24,7 @@ unzip 10-x-filings-train-part-1.zip -d data/train/train_part_1
 unzip 10x-filings-train-part-2.zip -d data/train/train_part_2
 unzip 10x-filings-valid.zip -d data/valid
 ```
+If you want to run the debugging mode with the dummy training and validation data, please download the dummy dataset here `kaggle datasets download -d shinomoriaoshi/10-x-filings-dummy-datasets`
 
 3. Install requirements
 ```
@@ -36,6 +37,7 @@ python main.py \
     --seed 1 \
     --ver v1a \
     --device cuda:0 \
+    --debug 0 \
     --use_log 1 \
     --use_tqdm 1 \
     --backbone ./tokenizer \
@@ -55,6 +57,7 @@ parser.add_argument('--seed', type = int, default = 1, help = 'The random state.
 parser.add_argument('--ver', type = str, default = 'v1a', help = 'The name of the current version.')
 parser.add_argument('--use_log', type = int, default = 0, help = 'Whether we log the training process or not, only takes 0 or 1.')
 parser.add_argument('--use_tqdm', type = int, default = 0, help = 'Whether we use loop tracking or not, only takes 0 or 1.')
+parser.add_argument('--debug', type = int, default = 0, help = 'Whether in the debugging mode or not.')
 parser.add_argument('--device', type = str, default = 'cpu', help = 'The training device.')
     
 # Model
