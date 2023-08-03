@@ -61,6 +61,7 @@ parser.add_argument('--backbone', type = str, default = '.', help = 'The checkpo
 parser.add_argument('--max_len', type = int, default = 10_000, help = 'The maximum sequence length.')
     
 # Training
+parser.add_argument('--train_one_part', type = int, default = 1, help = 'Whether or not training only the first part, or both parts of the training data.')
 parser.add_argument('--gradient_accumulation_steps', type = int, default = 1, help = 'The number of gradient accumulation steps.')
 parser.add_argument('--apex', type = int, default = 1, help = 'Whether or not we train with mixed precision.')
 parser.add_argument('--nepochs', type = int, default = 5, help = 'The number of training epochs.')
