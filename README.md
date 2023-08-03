@@ -41,8 +41,10 @@ python main.py \
     --backbone ./tokenizer \
     --max_len 10_000 \
     --nepochs 5 \
-    --batch_size 4 \
-    --train_data_dir /notebooks/data/train_part_1 \
+    --batch_size 2 \
+    --gradient_accumulation_steps 4 \
+    --train_one_part 0 \
+    --train_data_dir /notebooks/data/train \
     --valid_data_dir /notebooks/data/valid
 ```
 
