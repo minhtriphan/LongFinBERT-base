@@ -71,11 +71,14 @@ class Trainer(object):
             batch = {k: v.to(self.cfg.device) for k, v in batch.items()}
             with autocast(enabled = self.cfg.apex):
                 batch_loss, _ = model(input_ids = batch['input_ids'], attention_mask = batch['attention_mask'], labels = batch['labels'])
+                batch_loss
             batch_size = batch['input_ids'].shape[0]
             
             # Backward
-            scaler.scale(batch_loss).backward()
-
+            scaler.scale(batch_loss / self.cfg.gradient_accumulation_steps).backward()
+            
+            batch_loss.detach_()
+            
             # Update loss
             loss += batch_loss.item() * batch_size
             total_samples += batch_size
@@ -83,12 +86,13 @@ class Trainer(object):
             if self.cfg.use_tqdm:
                 tbar.set_postfix({'Average Loss': loss / total_samples})
             
-            # Update parameters
-            scaler.step(optimizer)
-            scaler.update()
-            scheduler.step()
-            optimizer.zero_grad()
-            global_step += 1
+            if ((i + 1) % self.cfg.gradient_accumulation_steps == 0) or ((i + 1) == len(tbar)):            
+                # Update parameters
+                scaler.step(optimizer)
+                scaler.update()
+                scheduler.step()
+                optimizer.zero_grad()
+                global_step += 1
         
         torch.cuda.empty_cache()
         
@@ -100,6 +104,11 @@ class Trainer(object):
         loss = 0
         total_samples = 0
         
+        if self.cfg.use_tqdm:
+            tbar = tqdm(dataloader)
+        else:
+            tbar = dataloader
+
         for i, batch in enumerate(tbar):
             model.train()
             batch = {k: v.to(self.cfg.device) for k, v in batch.items()}
@@ -126,7 +135,7 @@ class Trainer(object):
             print_log(self.cfg,
                       'Epoch: [{0}] - '
                       'Train/Valid Loss: {train_loss:.4f}/{valid_loss:.4f}'
-                      .format(epoch + 1, i + 1, len(dataloader),
+                      .format(epoch + 1,
                               train_loss = train_loss,
                               valid_loss = valid_loss))
             

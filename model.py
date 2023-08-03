@@ -330,11 +330,14 @@ class Model(nn.Module):
         self.output = nn.Linear(cfg.config.hidden_size, cfg.config.vocab_size)
         
     def loss_fn(self, pred, true):
+        mask = true != -100
+        pred = pred[mask,:]
+        true = true[mask]
         return nn.CrossEntropyLoss()(pred, true)
     
     def forward(self, input_ids, attention_mask = None, labels = None):
         hidden_state = self.backbone(input_ids = input_ids, attention_mask = attention_mask).last_hidden_state
-        output = self.output(hidden_state).permute(0, 2, 1)
+        output = self.output(hidden_state)
         
         if labels is not None:
             loss = self.loss_fn(output, labels)

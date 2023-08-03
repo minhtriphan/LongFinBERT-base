@@ -1,4 +1,5 @@
-import os
+import os, random
+import numpy as np
 import torch
 from transformers import AutoTokenizer
 
@@ -17,6 +18,9 @@ class LongBERTConfig(object):
     
     def __call__(self):
         return self
+    
+    def __str__(self):
+        return str(self.__dict__)
 
 class Config(object):
     def __init__(self, args):    # args
@@ -25,6 +29,7 @@ class Config(object):
         self.ver = args.ver
         self.use_log = bool(args.use_log)
         self.use_tqdm = bool(args.use_tqdm)
+        self.debug = bool(args.debug)
         # Model
         backbone = args.backbone
         self.tokenizer = AutoTokenizer.from_pretrained(backbone)
@@ -32,6 +37,8 @@ class Config(object):
         # Data
         self.max_len = args.max_len
         # Training
+        self.train_one_part = bool(args.train_one_part)
+        self.gradient_accumulation_steps = args.gradient_accumulation_steps
         self.apex = bool(args.apex)
         self.device = torch.device(args.device)
         self.nepochs = args.nepochs
@@ -55,6 +62,10 @@ class Config(object):
         self.valid_data_dir = args.valid_data_dir
         self.test_data_dir = args.test_data_dir
         self.output_dir = f'model/{self.ver[:-1]}/{self.ver[-1]}'
+        os.makedirs(self.output_dir, exist_ok = True)
+
+    def __str__(self):
+        return str(self.__dict__)
         
 def set_random_seed(seed):
     np.random.seed(seed) # cpu vars

@@ -1,15 +1,29 @@
+import os
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
-from datasets import load_from_disk
+from datasets import load_from_disk, concatenate_datasets
+
+from utils import print_log
 
 class LongFinBERTDataset(Dataset):
     def __init__(self, cfg, mode = 'train'):
         self.cfg = cfg
         if mode == 'train':
-            self.dataset = load_from_disk(cfg.train_data_dir)
+            if cfg.debug:
+                self.dataset = load_from_disk(cfg.train_data_dir)
+            else:
+                if cfg.train_one_part:
+                    print_log(cfg, 'Training only one part will automatically use the second part of the training data')
+                    self.dataset = load_from_disk(os.path.join(cfg.train_data_dir, 'train_part_2'))
+                else:
+                    dataset_1 = load_from_disk(os.path.join(cfg.train_data_dir, 'train_part_1'))
+                    dataset_2 = load_from_disk(os.path.join(cfg.train_data_dir, 'train_part_2'))
+                    self.dataset = concatenate_datasets([dataset_1, dataset_2])
         elif mode == 'valid':
             self.dataset = load_from_disk(cfg.valid_data_dir)
+        elif mode == 'test':
+            self.dataset = load_from_disk(cfg.test_data_dir)
     
     def _tokenize(self, text):
         return self.cfg.tokenizer(text, 

@@ -8,7 +8,7 @@ import pandas as pd
 
 def build_log(cfg):
     reload(logging)
-    logging_path = os.path.join(cfg.output_dir, f"train_{cfg.ver}_{time.strftime('%m%d_%H%M', time.localtime())}_seed_{cfg.seed}_folds_{''.join([str(i) for i in cfg.training_folds])}.log")
+    logging_path = os.path.join(cfg.output_dir, f"train_{cfg.ver}_{time.strftime('%m%d_%H%M', time.localtime())}_seed_{cfg.seed}.log")
     logging.basicConfig(
         level = logging.INFO,
         format = '%(asctime)s %(message)s',
