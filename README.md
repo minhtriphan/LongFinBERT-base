@@ -46,8 +46,8 @@ python main.py \
     --batch_size 2 \
     --gradient_accumulation_steps 4 \
     --train_one_part 0 \
-    --train_data_dir /notebooks/data/train \
-    --valid_data_dir /notebooks/data/valid
+    --train_data_dir /data/train \
+    --valid_data_dir /data/valid
 ```
 
 # Description of the arguments
