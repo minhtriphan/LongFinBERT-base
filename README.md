@@ -31,7 +31,8 @@ If you want to run the debugging mode with the dummy training and validation dat
 pip install -r requirement.txt
 ```
 _(In some cases with entirely new environments, some more packages are required to be installed)_
-3. Run
+
+4. Run
 ```
 python main.py \
     --seed 1 \
