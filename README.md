@@ -9,7 +9,7 @@ This is the implementation of the BERT model using the LongNet structure. The mo
 # Instructions to train the model
 1. Clone the repo and change the directory
 ```
-git clone https://github.com/minhtriphan/LongBERT.git
+git clone https://github.com/minhtriphan/LongFinBERT.git
 cd LongBERT
 ```
 
