@@ -18,7 +18,7 @@ This is the implementation of the BERT model using the LongNet structure (paper:
 # Instructions to train the model
 1. Clone the repo and change the directory
 ```
-git clone https://github.com/minhtriphan/LongFinBERT.git
+git clone [https://github.com/minhtriphan/LongFinBERT.git](https://github.com/minhtriphan/LongFinBERT-base.git)
 cd LongBERT
 ```
 
