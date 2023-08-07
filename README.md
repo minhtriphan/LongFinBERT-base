@@ -21,6 +21,12 @@ This is the implementation of the BERT model using the LongNet structure (paper:
 git clone https://github.com/minhtriphan/LongFinBERT-base.git
 cd LongBERT
 ```
+or
+```
+!git clone https://github.com/minhtriphan/LongFinBERT-base.git
+import sys
+sys.path.append('/LongFinBERT-base')
+```
 
 2. Download the datasets
 ```
