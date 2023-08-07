@@ -2,10 +2,52 @@ import os, copy, math
 import torch
 from torch import nn
 import torch.nn.functional as F
+
+from huggingface_hub import hf_hub_download
     
 class LongBERTOutput(object):
     def __repr__(self):
         return f"LongBERTOutput: {self.__dict__}"
+    
+class LongBERTConfig(object):
+    def __init__(self, tokenizer = None):
+        self.attention_probs_dropout_prob = 0.1
+        self.hidden_dropout_prob = 0.1
+        self.hidden_size = 768
+        self.max_position_embeddings = 70_000
+        self.num_attention_heads = 12
+        self.num_hidden_layers = 12
+        self.pad_token_id = 0
+        self.vocab_size = len(tokenizer) if tokenizer is not None else None
+        self.segment_size = [16, 128, 512, 1024, 2048]
+        self.dilated_rate = [1, 16, 64, 256, 512]
+    
+    def __call__(self):
+        return self
+    
+    def __str__(self):
+        return str(self.__dict__)
+    
+    @classmethod
+    def from_pretrained(self, ckpt):
+        ckpt = hf_hub_download(repo_id = ckpt, filename = 'config.json')
+        with open(ckpt, 'r') as f:
+            config_json = json.load(f)
+        return self.from_dict(config_json)
+    
+    @classmethod
+    def from_dict(self, _dict):
+        self.attention_probs_dropout_prob = _dict['attention_probs_dropout_prob']
+        self.hidden_dropout_prob = _dict['hidden_dropout_prob']
+        self.hidden_size = _dict['hidden_size']
+        self.max_position_embeddings = _dict['max_position_embeddings']
+        self.num_attention_heads = _dict['num_attention_heads']
+        self.num_hidden_layers = _dict['num_hidden_layers']
+        self.pad_token_id = _dict['pad_token_id']
+        self.vocab_size = _dict['vocab_size']
+        self.segment_size = _dict['segment_size']
+        self.dilated_rate = _dict['dilated_rate']
+        return self
 
 def clone(module, N):
     '''
@@ -309,10 +351,27 @@ class LongBERTEncoder(nn.Module):
         return self.longbert_output
     
 class LongBERT(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config = None):
         super(LongBERT, self).__init__()
-        self.embeddings = LongBERTEmbeddings(config)
-        self.encoder = LongBERTEncoder(config)
+        self.embeddings = LongBERTEmbeddings(config) if config is not None else None
+        self.encoder = LongBERTEncoder(config) if config is not None else None
+    
+    @classmethod
+    def from_config(self, config):
+        self.config = config
+        return self(config = config)
+    
+    @classmethod
+    def from_pretrained(self, ckpt):
+        model_ckpt = hf_hub_download(repo_id = ckpt, filename = 'pytorch_model.pt')
+        # Load the config first
+        model_config = LongBERTConfig.from_pretrained(ckpt)
+        self = self(config = model_config)
+        try:
+            self.load_state_dict(torch.load(model_ckpt, map_location = torch.device('cpu')))
+        except:
+            self.load_state_dict(torch.load(model_ckpt, map_location = torch.device('cuda:0')))
+        return self
         
     def save_pretrained(self, path):
         torch.save(self.state_dict(), os.path.join(path, 'pytorch_model.pt'))
