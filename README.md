@@ -1,5 +1,7 @@
 # LongFinBERT
-This is the implementation of the BERT model using the LongNet structure (paper: https://arxiv.org/pdf/2307.02486.pdf). The model is pre-trained with 10-K/Q filings of US firms from 1994 to 2018.
+This is the implementation of the BERT model using the LongNet structure (paper: https://arxiv.org/pdf/2307.02486.pdf). 
+
+The model is pre-trained with 10-K/Q filings of US firms from 1994 to 2008. Filings from 2009 to 2013 are used for model validation, and filings from 2013 to 2018 are used for model testing.
 
 # For references
 * Training is currently implemented on one A100 80GB;
