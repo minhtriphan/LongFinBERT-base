@@ -21,7 +21,7 @@ The model is pre-trained with 10-K/Q filings of US firms from 1994 to 2008. Fili
 1. Clone the repo and change the directory
 ```
 git clone https://github.com/minhtriphan/LongFinBERT-base.git
-cd LongBERT
+cd LongFinBERT-base
 ```
 or
 ```
