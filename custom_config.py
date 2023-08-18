@@ -23,6 +23,11 @@ class LongBERTConfig(object):
     
     def __str__(self):
         return str(self.__dict__)
+        
+    def save_pretrained(self, ckpt = '.'):
+        ckpt = os.path.join(ckpt, 'config.json')
+        with open(ckpt, 'w') as f:
+            json.dump(self.__dict__, f)
     
     @classmethod
     def from_pretrained(self, ckpt):
