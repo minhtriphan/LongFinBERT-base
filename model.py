@@ -357,10 +357,7 @@ class LongBERTModel(nn.Module):
         # Load the config first
         model_config = LongBERTConfig.from_pretrained(ckpt)
         self = self(config = model_config)
-        try:
-            self.load_state_dict(torch.load(model_ckpt, map_location = torch.device('cpu')))
-        except:
-            self.load_state_dict(torch.load(model_ckpt, map_location = torch.device('cuda:0')))
+        self.load_state_dict(torch.load(model_ckpt, map_location = torch.device('cpu')))
         return self
         
     def save_pretrained(self, path):
