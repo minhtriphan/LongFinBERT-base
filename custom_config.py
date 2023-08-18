@@ -1,9 +1,9 @@
 import os, random, json
 import numpy as np
 import torch
-from transformers import AutoTokenizer
-
 from huggingface_hub import hf_hub_download
+
+from tokenizer import LongBERTTokenizer
 
 class LongBERTConfig(object):
     def __init__(self, tokenizer = None):
@@ -60,7 +60,7 @@ class Config(object):
         self.debug = bool(args.debug)
         # Model
         backbone = args.backbone
-        self.tokenizer = AutoTokenizer.from_pretrained(backbone)
+        self.tokenizer = LongBERTTokenizer.from_pretrained(backbone)
         self.config = LongBERTConfig(self.tokenizer)
         # Data
         self.max_len = args.max_len
