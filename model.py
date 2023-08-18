@@ -3,6 +3,8 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
+from transformers import AutoModel
+
 from huggingface_hub import hf_hub_download
 
 from custom_config import LongBERTConfig
@@ -248,11 +250,37 @@ class DilatedMultiheadAttention(nn.Module):
 class LongBERTEmbeddings(nn.Module):
     def __init__(self, config):
         super(LongBERTEmbeddings, self).__init__()
+        self.config = config
         self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx = 0)
         self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
         self.token_type_embeddings = nn.Embedding(2, config.hidden_size)
-        self.layernorm = nn.LayerNorm(config.hidden_size, eps = 1e-12, elementwise_affine = 1e-12)
+        self.LayerNorm = nn.LayerNorm(config.hidden_size, eps = 1e-12, elementwise_affine = 1e-12)
         self.dropout = nn.Dropout(p = config.hidden_dropout_prob)
+        
+        self._initialize_embeddings()
+
+    def _initialize_embeddings(self):
+        finbert_model = AutoModel.from_pretrained('yiyanghkust/finbert-tone')
+        
+        # Extract the pre-trained embeddings weight from FinBERT
+        embeddings_state_dict = finbert_model.embeddings.state_dict()
+        word_embeddings = embeddings_state_dict.pop('word_embeddings.weight')
+        position_embeddings = embeddings_state_dict.pop('position_embeddings.weight')
+        token_type_embeddings = embeddings_state_dict.pop('token_type_embeddings.weight')
+        LayerNorm_weight = embeddings_state_dict.pop('LayerNorm.weight')
+        LayerNorm_bias = embeddings_state_dict.pop('LayerNorm.bias')
+
+        # Clone the positional_embeddings
+        max_len = self.config.max_position_embeddings
+        slices = list(range(0, max_len - 1, len(position_embeddings) - 1)) + [max_len - 2]
+        slices = [(1, 1 + sl2 - sl1) for (sl1, sl2) in zip(slices[:-1], slices[1:])]
+        position_embeddings = torch.cat([position_embeddings[:1]] + [position_embeddings[slice(*sl)] for sl in slices] + [position_embeddings[-1:]])
+
+        # Load the embeddings weights into our model for initialization
+        self.word_embeddings.load_state_dict({'weight': word_embeddings})
+        self.position_embeddings.load_state_dict({'weight': position_embeddings})
+        self.token_type_embeddings.load_state_dict({'weight': token_type_embeddings})
+        self.LayerNorm.load_state_dict({'weight': LayerNorm_weight, 'bias': LayerNorm_bias})
         
     def forward(self, input_ids, token_type_ids, position_ids):
         word_embeddings = self.word_embeddings(input_ids)
@@ -262,7 +290,7 @@ class LongBERTEmbeddings(nn.Module):
             token_type_embeddings = 0
         position_embeddings = self.position_embeddings(position_ids)
         embeddings = word_embeddings + token_type_embeddings + position_embeddings
-        embeddings = self.layernorm(embeddings)
+        embeddings = self.LayerNorm(embeddings)
         return self.dropout(embeddings)
     
 class LongBERTLayer(nn.Module):
@@ -312,9 +340,9 @@ class LongBERTEncoder(nn.Module):
             
         return self.longbert_output
     
-class LongBERT(nn.Module):
+class LongBERTModel(nn.Module):
     def __init__(self, config = None):
-        super(LongBERT, self).__init__()
+        super(LongBERTModel, self).__init__()
         self.embeddings = LongBERTEmbeddings(config) if config is not None else None
         self.encoder = LongBERTEncoder(config) if config is not None else None
     
@@ -325,7 +353,7 @@ class LongBERT(nn.Module):
     
     @classmethod
     def from_pretrained(self, ckpt):
-        model_ckpt = hf_hub_download(repo_id = ckpt, filename = 'pytorch_model.pt')
+        model_ckpt = hf_hub_download(repo_id = ckpt, filename = 'pytorch_model.bin')
         # Load the config first
         model_config = LongBERTConfig.from_pretrained(ckpt)
         self = self(config = model_config)
@@ -336,7 +364,7 @@ class LongBERT(nn.Module):
         return self
         
     def save_pretrained(self, path):
-        torch.save(self.state_dict(), os.path.join(path, 'pytorch_model.pt'))
+        torch.save(self.state_dict(), os.path.join(path, 'pytorch_model.bin'))
                 
     def forward(self, input_ids, attention_mask = None, token_type_ids = None, output_hidden_states = False):
         batch_size, seq_len = input_ids.size(0), input_ids.size(1)
@@ -347,7 +375,7 @@ class LongBERT(nn.Module):
 class Model(nn.Module):
     def __init__(self, cfg):
         super(Model, self).__init__()
-        self.backbone = LongBERT(cfg.config)
+        self.backbone = LongBERTModel(cfg.config)
         self.output = nn.Linear(cfg.config.hidden_size, cfg.config.vocab_size)
         
     def loss_fn(self, pred, true):
