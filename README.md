@@ -58,7 +58,7 @@ python main.py \
     --debug 0 \
     --use_log 1 \
     --use_tqdm 1 \
-    --backbone ./tokenizer \
+    --backbone minhtriphan/LongFinBERT-base \
     --max_len 45_000 \
     --nepochs 5 \
     --batch_size 2 \
