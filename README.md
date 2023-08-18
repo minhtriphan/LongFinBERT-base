@@ -5,8 +5,8 @@ The model is pre-trained with 10-K/Q filings of US firms from 1994 to 2008. Fili
 
 # For references
 * Training is currently implemented on one A100 80GB;
-* Maximum sequence length is 45_000 tokens;
-* Training time: ~13.5 hours per epoch;
+* Maximum sequence length is 51_200 tokens;
+* Training time: ~15 hours per epoch;
 * Validating time: ~3.75 hours per epoch;
 * The tokenizer was pre-trained with all data with the BERTTokenizer
 
@@ -45,7 +45,7 @@ If you want to run the debugging mode with the dummy training and validation dat
 
 3. Install requirements
 ```
-pip install -r requirement.txt
+pip install -r requirements.txt
 ```
 _(In some cases with entirely new environments, some more packages are required to be installed)_
 
