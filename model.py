@@ -352,8 +352,8 @@ class LongBERTModel(nn.Module):
         return self(config = config)
     
     @classmethod
-    def from_pretrained(self, ckpt):
-        model_ckpt = hf_hub_download(repo_id = ckpt, filename = 'pytorch_model.bin')
+    def from_pretrained(self, ckpt, version = 'v2'):
+        model_ckpt = hf_hub_download(repo_id = ckpt, filename = f'pytorch_model_{version}.bin')
         # Load the config first
         model_config = LongBERTConfig.from_pretrained(ckpt)
         self = self(config = model_config)
