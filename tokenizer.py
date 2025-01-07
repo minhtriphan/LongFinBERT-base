@@ -1,5 +1,6 @@
 from transformers import AutoTokenizer
 from huggingface_hub import hf_hub_download
+import pathlib
 
 class LongBERTTokenizer(AutoTokenizer):
     def __init__(self):
@@ -12,5 +13,6 @@ class LongBERTTokenizer(AutoTokenizer):
         _tokenizer_config = hf_hub_download(repo_id = ckpt, filename = 'tokenizer_config.json')
         _vocab = hf_hub_download(repo_id = ckpt, filename = 'vocab.txt')
 
-        path = '/'.join(_special_tokens_map.split('/')[:-1])
+        # path = '/'.join(_special_tokens_map.split('/')[:-1])
+        path = str(pathlib.Path(_special_tokens_map).parent)
         return AutoTokenizer.from_pretrained(path, **kwargs)
