@@ -2,9 +2,8 @@ import os, copy, math
 import torch
 from torch import nn
 import torch.nn.functional as F
-
+from collections import OrderedDict
 from transformers import AutoModel
-
 from huggingface_hub import hf_hub_download
 
 from custom_config import LongBERTConfig
@@ -151,9 +150,19 @@ class DilatedMultiheadAttention(nn.Module):
         self.dilated_rate = dilated_rate
         self.dropout = dropout
         
-        self.q_proj = nn.Linear(embedding_dim, embedding_dim, bias = False)
-        self.k_proj = nn.Linear(embedding_dim, embedding_dim, bias = False)
-        self.v_proj = nn.Linear(embedding_dim, embedding_dim, bias = False)
+        self.q_proj = nn.Linear(embedding_dim, embedding_dim, bias = True)
+        self.k_proj = nn.Linear(embedding_dim, embedding_dim, bias = True)
+        self.v_proj = nn.Linear(embedding_dim, embedding_dim, bias = True)
+
+        self.output = nn.Sequential(
+            OrderedDict(
+                [
+                    ('dense', nn.Linear(embedding_dim, embedding_dim)),
+                    ('LayerNorm', nn.LayerNorm(embedding_dim, eps = 1e-12, elementwise_affine = True)),
+                    ('dropout', nn.Dropout(p = self.dropout, inplace = False)), 
+                ]
+            )
+        )
         
     def forward(self, query, key, value, key_padding_mask = None, attn_mask = None):
         batch_size, seq_len, embedding_dim = query.shape[0], query.shape[1], query.shape[2]
@@ -204,35 +213,12 @@ class DilatedMultiheadAttention(nn.Module):
             
             # Attention
             _attn_output, _attn_output_weights, _segment_weights = dilated_attention(_query, _key, _value, key_padding_mask = _key_padding_mask, attn_mask = attn_mask, dropout = self.dropout)
-            # Shape of attn_output: (batch_size, n_head, n_segment, segment_size, dim)
-            # Shape of attn_output_weights: (batch_size, n_head, n_segment, segment_size, segment_size)
-            # Shape of segment_weights: (batch_size, n_head, n_segment, segment_size)
-            # attn_output = attn_output * segment_weights.unsqueeze(-1)
             
             attn_output_resized = torch.zeros((batch_size, n_segment, segment_size, self.n_head, self.d_proj), 
                                               device = _attn_output.device, dtype = _attn_output.dtype)
             attn_output_resized[:,:,::dilated_rate,:,:] = _attn_output.contiguous().permute(0, 2, 3, 1, 4)
             _attn_output = attn_output_resized.contiguous()
-            '''
-            # Reconstruct the attention weights
-            attn_output_weights_resized = torch.zeros((batch_size, self.n_head, n_segment, seq_len, seq_len), 
-                                                      device = _attn_output_weights.device, dtype = _attn_output_weights.dtype)
-            for i in range(0, seq_len, segment_size):
-                _s = i
-                _e = min(i + segment_size, seq_len)
-                attn_output_weights_resized[:,:,:, slice(_s, _e, dilated_rate), slice(_s, _e, dilated_rate)] = _attn_output_weights.contiguous()
-            _attn_output_weights = attn_output_weights_resized.contiguous()    # Shape: (batch_size, n_head, n_segment, segment_size, segment_size)
-            
-            # Reconstruct the segment weights
-            segment_weights_resized = torch.zeros((batch_size, self.n_head, n_segment, seq_len),
-                                                  device = _segment_weights.device, dtype = _segment_weights.dtype)
-            
-            for i in range(0, seq_len, segment_size):
-                _s = i
-                _e = min(i + segment_size, seq_len)
-                segment_weights_resized[:,:,:, slice(_s, _e, dilated_rate)] = _segment_weights.contiguous()
-            _segment_weights = segment_weights_resized.contiguous()    # Shape: (batch_size, n_head, n_segment, seq_len)
-            '''
+
             # Concatenation
             _attn_output = _attn_output.contiguous().view(batch_size, n_segment, segment_size, embedding_dim)
             _attn_output = _attn_output.permute(0, 3, 1, 2).view(batch_size, embedding_dim, _seq_len).transpose(1, 2)
@@ -245,7 +231,7 @@ class DilatedMultiheadAttention(nn.Module):
             else:
                 attn_output += _attn_output / len(self.segment_size)
         
-        return attn_output
+        return self.output(attn_output)
 
 class LongBERTEmbeddings(nn.Module):
     def __init__(self, config):
@@ -256,31 +242,6 @@ class LongBERTEmbeddings(nn.Module):
         self.token_type_embeddings = nn.Embedding(2, config.hidden_size)
         self.LayerNorm = nn.LayerNorm(config.hidden_size, eps = 1e-12, elementwise_affine = 1e-12)
         self.dropout = nn.Dropout(p = config.hidden_dropout_prob)
-        
-        self._initialize_embeddings()
-
-    def _initialize_embeddings(self):
-        finbert_model = AutoModel.from_pretrained('yiyanghkust/finbert-tone')
-        
-        # Extract the pre-trained embeddings weight from FinBERT
-        embeddings_state_dict = finbert_model.embeddings.state_dict()
-        word_embeddings = embeddings_state_dict.pop('word_embeddings.weight')
-        position_embeddings = embeddings_state_dict.pop('position_embeddings.weight')
-        token_type_embeddings = embeddings_state_dict.pop('token_type_embeddings.weight')
-        LayerNorm_weight = embeddings_state_dict.pop('LayerNorm.weight')
-        LayerNorm_bias = embeddings_state_dict.pop('LayerNorm.bias')
-
-        # Clone the positional_embeddings
-        max_len = self.config.max_position_embeddings
-        slices = list(range(0, max_len - 1, len(position_embeddings) - 1)) + [max_len - 2]
-        slices = [(1, 1 + sl2 - sl1) for (sl1, sl2) in zip(slices[:-1], slices[1:])]
-        position_embeddings = torch.cat([position_embeddings[:1]] + [position_embeddings[slice(*sl)] for sl in slices] + [position_embeddings[-1:]])
-
-        # Load the embeddings weights into our model for initialization
-        self.word_embeddings.load_state_dict({'weight': word_embeddings})
-        self.position_embeddings.load_state_dict({'weight': position_embeddings})
-        self.token_type_embeddings.load_state_dict({'weight': token_type_embeddings})
-        self.LayerNorm.load_state_dict({'weight': LayerNorm_weight, 'bias': LayerNorm_bias})
         
     def forward(self, input_ids, token_type_ids, position_ids):
         word_embeddings = self.word_embeddings(input_ids)
@@ -298,14 +259,27 @@ class LongBERTLayer(nn.Module):
         super(LongBERTLayer, self).__init__()        
         self.attention = DilatedMultiheadAttention(config.hidden_size, config.num_attention_heads, 
                                                    config.segment_size, config.dilated_rate, dropout = config.attention_probs_dropout_prob)
+        self.intermediate = nn.Sequential(
+            OrderedDict(
+                [
+                    ('dense', nn.Linear(config.hidden_size, 3072)),    # 3072 is from FinBERT
+                    ('intermediate_act_fn', nn.GELU())
+                ]
+            )
+        )
         self.output = nn.Sequential(
-            nn.Linear(config.hidden_size, config.hidden_size),
-            nn.LayerNorm(config.hidden_size, eps = 1e-12, elementwise_affine = True),
-            nn.Dropout(p = config.hidden_dropout_prob, inplace = False),
+            OrderedDict(
+                [
+                    ('dense', nn.Linear(3072, config.hidden_size)),
+                    ('LayerNorm', nn.LayerNorm(config.hidden_size, eps = 1e-12, elementwise_affine = 1e-12)),
+                    ('dropout', nn.Dropout(config.attention_probs_dropout_prob, inplace = False)),
+                ]
+            )
         )
     
     def forward(self, query, key, value, key_padding_mask = None, attn_mask = None):
         attn_output = self.attention(query, key, value, key_padding_mask = key_padding_mask, attn_mask = attn_mask)
+        attn_output = self.intermediate(attn_output)
         attn_output = self.output(attn_output)
         return attn_output
     
@@ -324,7 +298,7 @@ class LongBERTEncoder(nn.Module):
         self.layer = clone(LongBERTLayer(config), config.num_hidden_layers)    # For the base version, we use only 12 layers
         self.pooler = LongBERTPooler(config)
         self.longbert_output = LongBERTOutput()
-        
+
     def forward(self, hidden_state, attention_mask = None, output_hidden_states = False):
         key_padding_mask = ~attention_mask.bool() if attention_mask is not None else attention_mask
         hidden_states = tuple()
@@ -341,10 +315,74 @@ class LongBERTEncoder(nn.Module):
         return self.longbert_output
     
 class LongBERTModel(nn.Module):
-    def __init__(self, config = None):
+    def __init__(self, config = None, initialize = False):
         super(LongBERTModel, self).__init__()
+        self.config = config
         self.embeddings = LongBERTEmbeddings(config) if config is not None else None
         self.encoder = LongBERTEncoder(config) if config is not None else None
+
+        if initialize:
+            # This function will initialize the embedding layer of the LongFinBERT by the FinBERT's embeddings
+            self.finbert_model = AutoModel.from_pretrained('yiyanghkust/finbert-tone')
+            self._initialize_embeddings()
+            self._initialize_weights()
+
+    def _initialize_embeddings(self):
+        # Extract the pre-trained embeddings weight from FinBERT
+        embeddings_state_dict = self.finbert_model.embeddings.state_dict()
+        word_embeddings = embeddings_state_dict.pop('word_embeddings.weight')
+        position_embeddings = embeddings_state_dict.pop('position_embeddings.weight')
+        token_type_embeddings = embeddings_state_dict.pop('token_type_embeddings.weight')
+        LayerNorm_weight = embeddings_state_dict.pop('LayerNorm.weight')
+        LayerNorm_bias = embeddings_state_dict.pop('LayerNorm.bias')
+
+        # Clone the positional_embeddings
+        max_len = self.config.max_position_embeddings
+        slices = list(range(0, max_len - 1, len(position_embeddings) - 1)) + [max_len - 2]
+        slices = [(1, 1 + sl2 - sl1) for (sl1, sl2) in zip(slices[:-1], slices[1:])]
+        position_embeddings = torch.cat([position_embeddings[:1]] + [position_embeddings[slice(*sl)] for sl in slices] + [position_embeddings[-1:]])
+
+        # Load the embeddings weights into our model for initialization
+        self.embeddings.word_embeddings.load_state_dict({'weight': word_embeddings})
+        self.embeddings.position_embeddings.load_state_dict({'weight': position_embeddings})
+        self.embeddings.token_type_embeddings.load_state_dict({'weight': token_type_embeddings})
+        self.embeddings.LayerNorm.load_state_dict({'weight': LayerNorm_weight, 'bias': LayerNorm_bias})
+
+    def _initialize_projection_each_layer(self, layer, layer_idx):
+        # Extract the pre-trained projection weights from FinBERT
+        # Attention 
+        query = self.finbert_model.encoder.layer[layer_idx].attention.self.query.state_dict()
+        key = self.finbert_model.encoder.layer[layer_idx].attention.self.key.state_dict()
+        value = self.finbert_model.encoder.layer[layer_idx].attention.self.value.state_dict()
+        attention_output_dense = self.finbert_model.encoder.layer[layer_idx].attention.output.dense.state_dict()
+        attention_output_layernorm = self.finbert_model.encoder.layer[layer_idx].attention.output.LayerNorm.state_dict()
+        
+        # Intermediate
+        intermediate_dense = self.finbert_model.encoder.layer[layer_idx].intermediate.dense.state_dict()
+
+        # Output (of the layer, not the attention)
+        output_dense = self.finbert_model.encoder.layer[layer_idx].output.dense.state_dict()
+        output_layernorm = self.finbert_model.encoder.layer[layer_idx].output.LayerNorm.state_dict()
+
+        # Load the embeddings weights into our model for initialization
+        # Attention
+        layer.attention.q_proj.load_state_dict(query)
+        layer.attention.k_proj.load_state_dict(key)
+        layer.attention.v_proj.load_state_dict(value)
+
+        layer.attention.output.dense.load_state_dict(attention_output_dense)
+        layer.attention.output.LayerNorm.load_state_dict(attention_output_layernorm)
+
+        # Intermediate
+        layer.intermediate.dense.load_state_dict(intermediate_dense)
+
+        # Output (of the layer, not the attention)
+        layer.output.dense.load_state_dict(output_dense)
+        layer.output.LayerNorm.load_state_dict(output_layernorm)
+
+    def _initialize_weights(self):
+        for i, layer in enumerate(self.encoder.layer):
+            self._initialize_projection_each_layer(layer, i)
     
     @classmethod
     def from_config(self, config):
@@ -362,7 +400,7 @@ class LongBERTModel(nn.Module):
         
     def save_pretrained(self, path):
         torch.save(self.state_dict(), os.path.join(path, 'pytorch_model.bin'))
-                
+        
     def forward(self, input_ids, attention_mask = None, token_type_ids = None, output_hidden_states = False):
         batch_size, seq_len = input_ids.size(0), input_ids.size(1)
         position_ids = torch.arange(0, seq_len, dtype = torch.long).view(1, -1).repeat_interleave(batch_size, dim = 0).to(input_ids.device)

@@ -56,6 +56,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     cfg = Config(args)
+
+    set_random_seed(cfg.seed)
     
     if cfg.use_log:
         build_log(cfg)
