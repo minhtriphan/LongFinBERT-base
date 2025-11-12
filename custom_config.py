@@ -10,13 +10,13 @@ class LongBERTConfig(object):
         self.attention_probs_dropout_prob = 0.1
         self.hidden_dropout_prob = 0.1
         self.hidden_size = 768
-        self.max_position_embeddings = 70_000
+        self.max_position_embeddings = 300_000
         self.num_attention_heads = 12
         self.num_hidden_layers = 12
         self.pad_token_id = 0
         self.vocab_size = len(tokenizer) if tokenizer is not None else None
-        self.segment_size = [16, 128, 512, 1024, 2048]
-        self.dilated_rate = [1, 16, 64, 256, 512]
+        self.segment_size = [16, 128, 512, 1024, 2048, 4096, 8192]
+        self.dilated_rate = [1, 16, 64, 256, 512, 1024, 2048]
     
     def __call__(self):
         return self
