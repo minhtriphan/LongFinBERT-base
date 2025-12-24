@@ -4,7 +4,8 @@ from tqdm import tqdm
 import torch
 from torch.utils.data import DataLoader
 from torch.cuda.amp import autocast, GradScaler
-from transformers import get_cosine_schedule_with_warmup, get_linear_schedule_with_warmup, AdamW
+from transformers import get_cosine_schedule_with_warmup, get_linear_schedule_with_warmup
+from torch.optim import AdamW
 
 from utils import metric_fn, print_log
 from dataset import LongFinBERTDataset, Collator

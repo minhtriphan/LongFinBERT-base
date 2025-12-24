@@ -1,7 +1,7 @@
 import os
 import time
 import logging
-from imp import reload
+from importlib import reload
 
 import numpy as np
 import pandas as pd

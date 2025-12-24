@@ -36,7 +36,7 @@ class LongFinBERTDataset(Dataset):
         return len(self.dataset)
     
     def __getitem__(self, idx):
-        text = self.dataset[idx]['text']
+        text = self.dataset[idx]['contents']
         tokenized_text = self._tokenize(text)
         
         return {
