@@ -38,6 +38,7 @@ if __name__ == '__main__':
     parser.add_argument('--apex', type = int, default = 1, help = 'Whether or not we train with mixed precision.')
     parser.add_argument('--nepochs', type = int, default = 5, help = 'The number of training epochs.')
     parser.add_argument('--batch_size', type = int, default = 4, help = 'The batch size.')
+    parser.add_argument('--freeze_finbert', type = int, default = 0, help = 'Whether to freeze the FinBERT parts.')
     
     # Optimizer
     parser.add_argument('--lr', type = float, default = 2e-5, help = 'The training learning rate.')
