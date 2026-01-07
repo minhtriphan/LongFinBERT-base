@@ -72,6 +72,7 @@ class Config(object):
         self.nepochs = args.nepochs
         self.batch_size = args.batch_size
         self.num_workers = os.cpu_count()
+        self.freeze_finbert = args.freeze_finbert
         # Optimizer
         self.lr = args.lr
         self.weight_decay = args.weight_decay
