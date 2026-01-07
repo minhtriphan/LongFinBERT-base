@@ -328,7 +328,7 @@ class LongBERTModel(nn.Module):
             self._initialize_weights()
 
             # No training for the finbert_model
-            for param in self.finbert_modelparameters():
+            for param in self.finbert_model.parameters():
                 param.requires_grad = False
 
     def _initialize_embeddings(self):
