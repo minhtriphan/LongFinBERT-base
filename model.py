@@ -327,6 +327,10 @@ class LongBERTModel(nn.Module):
             self._initialize_embeddings()
             self._initialize_weights()
 
+            # No training for the finbert_model
+            for param in self.finbert_modelparameters():
+                param.requires_grad = False
+
     def _initialize_embeddings(self):
         # Extract the pre-trained embeddings weight from FinBERT
         embeddings_state_dict = self.finbert_model.embeddings.state_dict()
