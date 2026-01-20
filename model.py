@@ -152,7 +152,8 @@ class DilatedMultiheadAttention(nn.Module):
         self.q_proj = nn.Linear(embedding_dim, embedding_dim, bias = True)
         self.k_proj = nn.Linear(embedding_dim, embedding_dim, bias = True)
         self.v_proj = nn.Linear(embedding_dim, embedding_dim, bias = True)
-        self.dropout = nn.Dropout(p = dropout, inplace = False)
+        self.dropout = dropout
+        self.dropout_fn = nn.Dropout(p = dropout, inplace = False)
 
         self.output = nn.Sequential(
             OrderedDict(
@@ -231,7 +232,7 @@ class DilatedMultiheadAttention(nn.Module):
             else:
                 attn_output += _attn_output / len(self.segment_size)
 
-        return self.output(self.dropout(attn_output))
+        return self.output(self.dropout_fn(attn_output))
 
 class LongBERTEmbeddings(nn.Module):
     def __init__(self, config):
