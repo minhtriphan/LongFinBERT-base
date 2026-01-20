@@ -10,7 +10,7 @@ class LongBERTConfig(object):
         self.attention_probs_dropout_prob = 0.1
         self.hidden_dropout_prob = 0.1
         self.hidden_size = 768
-        self.max_position_embeddings = 300_000
+        self.max_position_embeddings = 250_000
         self.num_attention_heads = 12
         self.num_hidden_layers = 12
         self.pad_token_id = 0
@@ -73,6 +73,7 @@ class Config(object):
         self.batch_size = args.batch_size
         self.num_workers = os.cpu_count()
         self.freeze_finbert = args.freeze_finbert
+        self.resume_training = resume_training
         # Optimizer
         self.lr = args.lr
         self.weight_decay = args.weight_decay

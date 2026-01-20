@@ -148,18 +148,18 @@ class DilatedMultiheadAttention(nn.Module):
         self.n_head = n_head
         self.segment_size = segment_size
         self.dilated_rate = dilated_rate
-        self.dropout = dropout
 
         self.q_proj = nn.Linear(embedding_dim, embedding_dim, bias = True)
         self.k_proj = nn.Linear(embedding_dim, embedding_dim, bias = True)
         self.v_proj = nn.Linear(embedding_dim, embedding_dim, bias = True)
+        self.dropout = nn.Dropout(p = dropout, inplace = False)
 
         self.output = nn.Sequential(
             OrderedDict(
                 [
                     ('dense', nn.Linear(embedding_dim, embedding_dim)),
                     ('LayerNorm', nn.LayerNorm(embedding_dim, eps = 1e-12, elementwise_affine = True)),
-                    ('dropout', nn.Dropout(p = self.dropout, inplace = False)),
+                    ('dropout', nn.Dropout(p = dropout, inplace = False)),
                 ]
             )
         )
@@ -203,8 +203,8 @@ class DilatedMultiheadAttention(nn.Module):
 
             # Projection
             _query = self.q_proj(_query).view(batch_size, n_segment, -1, self.n_head, self.d_proj).permute(0, 3, 1, 2, 4)
-            _key = self.q_proj(_key).view(batch_size, n_segment, -1, self.n_head, self.d_proj).permute(0, 3, 1, 2, 4)
-            _value = self.q_proj(_value).view(batch_size, n_segment, -1, self.n_head, self.d_proj).permute(0, 3, 1, 2, 4)
+            _key = self.k_proj(_key).view(batch_size, n_segment, -1, self.n_head, self.d_proj).permute(0, 3, 1, 2, 4)
+            _value = self.v_proj(_value).view(batch_size, n_segment, -1, self.n_head, self.d_proj).permute(0, 3, 1, 2, 4)
 
             if key_padding_mask is not None:
                 _key_padding_mask = _key_padding_mask.view(batch_size, n_segment, segment_size)[:,:,::dilated_rate]
@@ -231,7 +231,7 @@ class DilatedMultiheadAttention(nn.Module):
             else:
                 attn_output += _attn_output / len(self.segment_size)
 
-        return self.output(attn_output)
+        return self.output(self.dropout(attn_output))
 
 class LongBERTEmbeddings(nn.Module):
     def __init__(self, config):
@@ -240,7 +240,7 @@ class LongBERTEmbeddings(nn.Module):
         self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx = 0)
         self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
         self.token_type_embeddings = nn.Embedding(2, config.hidden_size)
-        self.LayerNorm = nn.LayerNorm(config.hidden_size, eps = 1e-12, elementwise_affine = 1e-12)
+        self.LayerNorm = nn.LayerNorm(config.hidden_size, eps = 1e-12, elementwise_affine = True)
         self.dropout = nn.Dropout(p = config.hidden_dropout_prob)
 
     def forward(self, input_ids, token_type_ids, position_ids):
@@ -263,7 +263,7 @@ class LongBERTLayer(nn.Module):
             OrderedDict(
                 [
                     ('dense', nn.Linear(config.hidden_size, 3072)),    # 3072 is from FinBERT
-                    ('intermediate_act_fn', nn.GELU())
+                    ('intermediate_act_fn', nn.GELU(approximate = 'tanh'))
                 ]
             )
         )
@@ -271,7 +271,7 @@ class LongBERTLayer(nn.Module):
             OrderedDict(
                 [
                     ('dense', nn.Linear(3072, config.hidden_size)),
-                    ('LayerNorm', nn.LayerNorm(config.hidden_size, eps = 1e-12, elementwise_affine = 1e-12)),
+                    ('LayerNorm', nn.LayerNorm(config.hidden_size, eps = 1e-12, elementwise_affine = True)),
                     ('dropout', nn.Dropout(config.attention_probs_dropout_prob, inplace = False)),
                 ]
             )
@@ -322,7 +322,7 @@ class LongBERTModel(nn.Module):
         self.encoder = LongBERTEncoder(config) if config is not None else None
 
         if initialize:
-            # This function will initialize the embedding layer of the LongFinBERT by the FinBERT's embeddings
+            # This function will initialize the embedding layer and appropriate weights of LongFinBERT by FinBERT's model weights
             self.finbert_model = AutoModel.from_pretrained('yiyanghkust/finbert-tone')
             self._initialize_embeddings()
             self._initialize_weights()
@@ -410,6 +410,9 @@ class LongBERTModel(nn.Module):
         position_ids = torch.arange(0, seq_len, dtype = torch.long).view(1, -1).repeat_interleave(batch_size, dim = 0).to(input_ids.device)
         hidden_state = self.embeddings(input_ids, token_type_ids, position_ids)
         return self.encoder(hidden_state, attention_mask = attention_mask, output_hidden_states = output_hidden_states)
+    
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.config})\n{super().__repr__()}'
 
 class Model(nn.Module):
     def __init__(self, cfg):

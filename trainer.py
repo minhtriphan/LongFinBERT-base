@@ -1,4 +1,5 @@
-import os
+import os, random
+import numpy as np
 from tqdm import tqdm
 
 import torch
@@ -127,9 +128,19 @@ class Trainer(object):
     def fit(self):
         # Prepare materials
         model, dataloader, optimizer, scheduler, eval_dataloader = self._prepare_train_materials()
+
+        if self.cfg.resume_training:
+            checkpoint = torch.load(os.path.join(self.cfg.output_dir, 'resume_training', 'checkpoint.pt'), map_location = self.cfg.device)
+            model.load_state_dict(checkpoint['model_state'])
+            model.to(self.cfg.device)
+            optimizer.load_state_dict(checkpoint['optimizer_state'])
+            scheduler.load_state_dict(checkpoint['scheduler_state'])
+            start_epoch = checkpoint['epoch']
+        else:
+            start_epoch = 0
         
         # Train
-        for epoch in range(self.cfg.nepochs):
+        for epoch in range(start_epoch, self.cfg.nepochs):
             train_loss = self.train_each_epoch(model, dataloader, optimizer, scheduler)
             valid_loss = self.valid_each_epoch(model, eval_dataloader)
             
@@ -144,3 +155,20 @@ class Trainer(object):
             print_log(self.cfg, f'Saving the model to {self.cfg.output_dir}')
             model.backbone.save_pretrained(self.cfg.output_dir)
             self.cfg.tokenizer.save_pretrained(self.cfg.output_dir)
+
+            # Save checkpoint for resume training
+            print_log(self.cfg, f"Saving the model checkpoint for later training to {os.path.join(self.cfg.output_dir, 'resume_training')}")
+            checkpoint = {
+                'model_state': model.state_dict(),
+                'optimizer_state': optimizer.state_dict(),
+                'scheduler_state': scheduler.state_dict(),
+                'epoch': epoch,
+                'rng_state': {
+                    'torch': torch.get_rng_state(),
+                    'cuda': torch.cuda.get_rng_state_all(),
+                    'numpy': np.random.get_state(),
+                    'python': random.getstate(),
+                },
+            }
+            os.makedirs(os.path.join(self.cfg.output_dir, 'resume_training'), exist_ok = True)
+            torch.save(checkpoint, os.path.join(self.cfg.output_dir, 'resume_training', 'checkpoint.pt'))
