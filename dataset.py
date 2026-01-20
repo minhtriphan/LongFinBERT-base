@@ -11,7 +11,7 @@ class LongFinBERTDataset(Dataset):
         self.cfg = cfg
         if mode == 'train':
             if cfg.debug:
-                self.dataset = load_from_disk(cfg.train_data_dir)
+                self.dataset = load_from_disk(os.path.join(cfg.train_data_dir, 'sample data', 'train_part_2'))
             else:
                 if cfg.train_one_part:
                     print_log(cfg, 'Training only one part will automatically use the second part of the training data')
@@ -21,7 +21,10 @@ class LongFinBERTDataset(Dataset):
                     dataset_2 = load_from_disk(os.path.join(cfg.train_data_dir, 'train_part_2'))
                     self.dataset = concatenate_datasets([dataset_1, dataset_2])
         elif mode == 'valid':
-            self.dataset = load_from_disk(cfg.valid_data_dir)
+            if cfg.debug:
+                self.dataset = load_from_disk(os.path.join(cfg.train_data_dir, 'sample data', 'valid'))
+            else:
+                self.dataset = load_from_disk(cfg.valid_data_dir)
         elif mode == 'test':
             self.dataset = load_from_disk(cfg.test_data_dir)
     
