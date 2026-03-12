@@ -18,7 +18,7 @@ class Trainer(object):
         cfg
     ):
         self.cfg = cfg
-        
+
     def _prepare_dataloader(self):
         print_log(self.cfg, 'Preparing the dataloaders...')
         dataset = LongFinBERTDataset(self.cfg, mode = 'train')
@@ -45,7 +45,7 @@ class Trainer(object):
                 num_cycles = self.cfg.num_cycles
             )
         return scheduler
-    
+
     def _prepare_train_materials(self):
         print_log(self.cfg, 'Preparing training materials...')
         model = self._prepare_model()
@@ -55,7 +55,7 @@ class Trainer(object):
         scheduler = self._prepare_scheduler(optimizer, num_train_steps)
         scaler = GradScaler(enabled = self.cfg.apex)
         return model, dataloader, optimizer, scheduler, scaler, eval_dataloader
-    
+
     def train_each_epoch(self, model, dataloader, optimizer, scheduler, scaler):
         loss = 0
         total_samples = 0
@@ -73,37 +73,37 @@ class Trainer(object):
                 batch_loss, _ = model(input_ids = batch['input_ids'], attention_mask = batch['attention_mask'], labels = batch['labels'])
                 batch_loss
             batch_size = batch['input_ids'].shape[0]
-            
+
             # Backward
             scaler.scale(batch_loss / self.cfg.gradient_accumulation_steps).backward()
-            
+
             batch_loss.detach_()
-            
+
             # Update loss
             loss += batch_loss.item() * batch_size
             total_samples += batch_size
-            
+
             if self.cfg.use_tqdm:
                 tbar.set_postfix({'Average Loss': loss / total_samples})
-            
-            if ((i + 1) % self.cfg.gradient_accumulation_steps == 0) or ((i + 1) == len(tbar)):            
+
+            if ((i + 1) % self.cfg.gradient_accumulation_steps == 0) or ((i + 1) == len(tbar)):
                 # Update parameters
                 scaler.step(optimizer)
                 scaler.update()
                 scheduler.step()
                 optimizer.zero_grad()
                 global_step += 1
-        
+
         torch.cuda.empty_cache()
-        
+
         return loss / total_samples
-        
+
     def valid_each_epoch(self, model, dataloader):
         model.eval()
-        
+
         loss = 0
         total_samples = 0
-        
+
         if self.cfg.use_tqdm:
             tbar = tqdm(dataloader)
         else:
@@ -116,13 +116,13 @@ class Trainer(object):
                 with autocast(enabled = self.cfg.apex):
                     batch_loss, _ = model(input_ids = batch['input_ids'], attention_mask = batch['attention_mask'], labels = batch['labels'])
                 batch_size = batch['input_ids'].shape[0]
-                
+
             # Update loss
             loss += batch_loss.item() * batch_size
             total_samples += batch_size
-            
+
         return loss / total_samples
-        
+
     def fit(self):
         # Prepare materials
         model, dataloader, optimizer, scheduler, scaler, eval_dataloader = self._prepare_train_materials()
@@ -137,19 +137,19 @@ class Trainer(object):
             start_epoch = checkpoint['epoch']
         else:
             start_epoch = 0
-        
+
         # Train
         for epoch in range(start_epoch, self.cfg.nepochs):
             train_loss = self.train_each_epoch(model, dataloader, optimizer, scheduler, scaler)
             valid_loss = self.valid_each_epoch(model, eval_dataloader)
-            
+
             print_log(self.cfg,
                       'Epoch: [{0}] - '
                       'Train/Valid Loss: {train_loss:.4f}/{valid_loss:.4f}'
                       .format(epoch + 1,
                               train_loss = train_loss,
                               valid_loss = valid_loss))
-            
+
             # Save checkpoint
             print_log(self.cfg, f'Saving the model to {self.cfg.output_dir}')
             model.backbone.save_pretrained(self.cfg.output_dir)

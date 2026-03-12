@@ -395,12 +395,12 @@ class LongBERTModel(nn.Module):
         return self(config = config)
 
     @classmethod
-    def from_pretrained(self, ckpt, version = 'v2'):
-        model_ckpt = hf_hub_download(repo_id = ckpt, filename = f'pytorch_model_{version}.bin')
+    def from_pretrained(self, ckpt):
+        model_ckpt = hf_hub_download(repo_id = ckpt, filename = f'pytorch_model.bin')
         # Load the config first
         model_config = LongBERTConfig.from_pretrained(ckpt)
         self = self(config = model_config)
-        self.load_state_dict(torch.load(model_ckpt, map_location = torch.device('cpu')))
+        self.load_state_dict(torch.load(model_ckpt, map_location = torch.device('cpu')), strict = False)    # Important!!! Because in training, we load the FinBERT model weights, but in inference, we don't need them
         return self
 
     def save_pretrained(self, path):
@@ -411,7 +411,7 @@ class LongBERTModel(nn.Module):
         position_ids = torch.arange(0, seq_len, dtype = torch.long).view(1, -1).repeat_interleave(batch_size, dim = 0).to(input_ids.device)
         hidden_state = self.embeddings(input_ids, token_type_ids, position_ids)
         return self.encoder(hidden_state, attention_mask = attention_mask, output_hidden_states = output_hidden_states)
-    
+
     def __repr__(self):
         return f'{self.__class__.__name__}({self.config})\n{super().__repr__()}'
 
