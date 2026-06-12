@@ -94,8 +94,7 @@ class Trainer(object):
                 optimizer.zero_grad()
                 global_step += 1
 
-            
-            if ((i + 1) % self.cfg.checkpoint_steps == 0):
+            if ((i + 1) % self.cfg.checkpoint_steps == 0) or ((i + 1) == len(tbar)):
                 # Save checkpoints after some steps
                 print_log(self.cfg, f"Saving the model checkpoint to {os.path.join(self.cfg.output_dir, 'resume_training')}")
                 checkpoint = {
@@ -174,15 +173,3 @@ class Trainer(object):
             print_log(self.cfg, f'Saving the model to {self.cfg.output_dir}')
             model.backbone.save_pretrained(self.cfg.output_dir)
             self.cfg.tokenizer.save_pretrained(self.cfg.output_dir)
-
-            # Save checkpoint for resume training
-            print_log(self.cfg, f"Saving the model checkpoint for later training to {os.path.join(self.cfg.output_dir, 'resume_training')}")
-            checkpoint = {
-                'model_state': model.state_dict(),
-                'optimizer_state': optimizer.state_dict(),
-                'scheduler_state': scheduler.state_dict(),
-                'scaler': scaler.state_dict(),
-                'epoch': epoch
-            }
-            os.makedirs(os.path.join(self.cfg.output_dir, 'resume_training'), exist_ok = True)
-            torch.save(checkpoint, os.path.join(self.cfg.output_dir, 'resume_training', 'checkpoint.pt'))
