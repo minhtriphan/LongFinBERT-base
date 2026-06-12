@@ -28,7 +28,7 @@ if __name__ == '__main__':
 
     # Model
     parser.add_argument('--backbone', type = str, default = '.', help = 'The checkpoint of the tokenizer.')
-
+    
     # Data
     parser.add_argument('--max_len', type = int, default = 10_000, help = 'The maximum sequence length.')
 
@@ -39,6 +39,7 @@ if __name__ == '__main__':
     parser.add_argument('--nepochs', type = int, default = 5, help = 'The number of training epochs.')
     parser.add_argument('--batch_size', type = int, default = 4, help = 'The batch size.')
     parser.add_argument('--freeze_finbert', type = int, default = 0, help = 'Whether to freeze the FinBERT parts.')
+    parser.add_argument('--checkpoint_steps', type = int, default = 0, help = 'The number of steps after which a checkpoint is saved.')
     parser.add_argument('--resume_training', type = int, default = 0, help = 'Whether the training is resumed (1) or from scratch (0)')
 
     # Optimizer

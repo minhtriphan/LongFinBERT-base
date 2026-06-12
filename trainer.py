@@ -56,15 +56,15 @@ class Trainer(object):
         scaler = GradScaler(enabled = self.cfg.apex)
         return model, dataloader, optimizer, scheduler, scaler, eval_dataloader
 
-    def train_each_epoch(self, model, dataloader, optimizer, scheduler, scaler):
+    def train_each_epoch(self, model, dataloader, optimizer, scheduler, scaler, epoch, start_step):
         loss = 0
         total_samples = 0
         global_step = 0
 
         if self.cfg.use_tqdm:
-            tbar = tqdm(dataloader)
+            tbar = tqdm(list(dataloader)[start_step:])
         else:
-            tbar = dataloader
+            tbar = list(dataloader)[start_step:]
 
         for i, batch in enumerate(tbar):
             model.train()
@@ -93,6 +93,21 @@ class Trainer(object):
                 scheduler.step()
                 optimizer.zero_grad()
                 global_step += 1
+
+            
+            if ((i + 1) % self.cfg.checkpoint_steps == 0):
+                # Save checkpoints after some steps
+                print_log(self.cfg, f"Saving the model checkpoint to {os.path.join(self.cfg.output_dir, 'resume_training')}")
+                checkpoint = {
+                    'model_state': model.state_dict(),
+                    'optimizer_state': optimizer.state_dict(),
+                    'scheduler_state': scheduler.state_dict(),
+                    'scaler': scaler.state_dict(),
+                    'step': i,
+                    'epoch': epoch
+                }
+                os.makedirs(os.path.join(self.cfg.output_dir, 'resume_training'), exist_ok = True)
+                torch.save(checkpoint, os.path.join(self.cfg.output_dir, 'resume_training', f'checkpoint_{i}_{epoch}.pt'))
 
         torch.cuda.empty_cache()
 
@@ -134,14 +149,19 @@ class Trainer(object):
             optimizer.load_state_dict(checkpoint['optimizer_state'])
             scheduler.load_state_dict(checkpoint['scheduler_state'])
             scaler.load_state_dict(checkpoint['scaler_state'])
+            start_step = checkpoint['step']
             start_epoch = checkpoint['epoch']
         else:
+            start_step = 0
             start_epoch = 0
 
         # Train
         for epoch in range(start_epoch, self.cfg.nepochs):
-            train_loss = self.train_each_epoch(model, dataloader, optimizer, scheduler, scaler)
+            train_loss = self.train_each_epoch(model, dataloader, optimizer, scheduler, scaler, epoch, start_step = start_step)
             valid_loss = self.valid_each_epoch(model, eval_dataloader)
+
+            # Reset the starting step
+            start_step = 0
 
             print_log(self.cfg,
                       'Epoch: [{0}] - '

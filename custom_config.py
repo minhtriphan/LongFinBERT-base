@@ -73,7 +73,8 @@ class Config(object):
         self.batch_size = args.batch_size
         self.num_workers = os.cpu_count()
         self.freeze_finbert = args.freeze_finbert
-        self.resume_training = resume_training
+        self.resume_training = args.resume_training
+        self.checkpoint_steps = args.checkpoint_steps
         # Optimizer
         self.lr = args.lr
         self.weight_decay = args.weight_decay
