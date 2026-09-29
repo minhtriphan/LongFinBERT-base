@@ -94,7 +94,7 @@ class Trainer(object):
                 optimizer.zero_grad()
                 global_step += 1
 
-            if ((i + 1) % self.cfg.checkpoint_steps == 0) or ((i + 1) == len(tbar)):
+            if self.cfg.checkpoint_steps > 0 and (((i + 1) % self.cfg.checkpoint_steps == 0) or ((i + 1) == len(tbar))):
                 # Save checkpoints after some steps
                 print_log(self.cfg, f"Saving the model checkpoint to {os.path.join(self.cfg.output_dir, 'resume_training')}")
                 checkpoint = {
