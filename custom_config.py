@@ -15,8 +15,8 @@ class LongBERTConfig(object):
         self.num_hidden_layers = 12
         self.pad_token_id = 0
         self.vocab_size = len(tokenizer) if tokenizer is not None else None
-        self.segment_size = [16, 128, 512, 1024, 2048, 4096, 8192]
-        self.dilated_rate = [1, 16, 64, 256, 512, 1024, 2048]
+        self.segment_size = [16 * 2**i for i in range(15)]  # 16 ... 262144
+        self.dilated_rate = [2**i for i in range(15)]       # 1 ... 16384
     
     def __call__(self):
         return self
@@ -62,6 +62,8 @@ class Config(object):
         backbone = args.backbone
         self.tokenizer = LongBERTTokenizer.from_pretrained(backbone)
         self.config = LongBERTConfig(self.tokenizer)
+        # Path to the current (already trained) LongFinBERT weights used to initialize the model; '' = initialize from FinBERT
+        self.init_weights = args.init_weights
         # Data
         self.max_len = args.max_len
         # Training

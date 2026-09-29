@@ -171,6 +171,10 @@ class DilatedMultiheadAttention(nn.Module):
         attn_output = []
 
         for j, (segment_size, dilated_rate) in enumerate(zip(self.segment_size, self.dilated_rate)):
+            # A segment longer than the sequence is the same as one segment covering the whole sequence. Pad only to the
+            # next multiple of the dilation rate, instead of up to e.g. 262,144 tokens (same result, much less memory).
+            segment_size = min(segment_size, math.ceil(seq_len / dilated_rate) * dilated_rate)
+
             if seq_len % segment_size != 0:
                 # If the seq_len is not divisible by segment_size, we pad the sequence
                 add_padding_len = segment_size - seq_len % segment_size
@@ -180,7 +184,8 @@ class DilatedMultiheadAttention(nn.Module):
                 _key = torch.cat([key.contiguous(), padded], dim = 1)
                 _value = torch.cat([value.contiguous(), padded], dim = 1)
 
-                padded_mask = torch.zeros([batch_size, add_padding_len], device = key_padding_mask.device, dtype = key_padding_mask.dtype)
+                # The added padding must be masked (True); with zeros the real tokens also attended to the padding
+                padded_mask = torch.ones([batch_size, add_padding_len], device = key_padding_mask.device, dtype = key_padding_mask.dtype)
                 _key_padding_mask = torch.cat([key_padding_mask.contiguous(), padded_mask], dim = 1)
             else:
                 _seq_len = seq_len
@@ -418,11 +423,52 @@ class LongBERTModel(nn.Module):
 class Model(nn.Module):
     def __init__(self, cfg):
         super(Model, self).__init__()
-        self.backbone = LongBERTModel(cfg.config, initialize = True)
+        init_weights = getattr(cfg, 'init_weights', '')
+        # With current LongFinBERT weights, FinBERT is not needed for initialization
+        self.backbone = LongBERTModel(cfg.config, initialize = not init_weights)
         self.output = nn.Linear(cfg.config.hidden_size, cfg.config.vocab_size)
+
+        if init_weights:
+            self.load_current_weights(init_weights)
 
         if cfg.freeze_finbert:
             self.freeze_finbert()
+
+    def load_current_weights(self, path):
+        '''
+        Initializes the model with already trained LongFinBERT weights, where applicable.
+        The segment sizes and dilation rates do not change any weight shape (all branches share the same q/k/v
+        projections), so every backbone weight of the old model is loaded. The MLM head is loaded only if the file
+        contains it (a training checkpoint saved by the trainer); otherwise it stays randomly initialized.
+        Accepted: a directory containing pytorch_model.bin, pytorch_model.bin itself (saved by backbone.save_pretrained),
+        or a training checkpoint .pt (dict with 'model_state').
+        '''
+        if os.path.isdir(path):
+            path = os.path.join(path, 'pytorch_model.bin')
+        state_dict = torch.load(path, map_location = torch.device('cpu'))
+
+        if 'model_state' in state_dict:
+            # Training checkpoint: keys are already 'backbone.*' and 'output.*'
+            state_dict = state_dict['model_state']
+        else:
+            # Backbone file: add the 'backbone.' prefix
+            state_dict = {f'backbone.{k}': v for k, v in state_dict.items()}
+
+        # Drop the frozen FinBERT copy that was stored during the original training
+        state_dict = {k: v for k, v in state_dict.items() if '.finbert_model.' not in k}
+
+        # Keep only weights whose name and shape match the new model
+        own_state = self.state_dict()
+        applicable = {k: v for k, v in state_dict.items() if k in own_state and own_state[k].shape == v.shape}
+        skipped = [k for k in state_dict if k not in applicable]
+        not_initialized = [k for k in own_state if k not in applicable and '.finbert_model.' not in k]
+        self.load_state_dict(applicable, strict = False)
+
+        print(f'Loaded {len(applicable)} tensors from {path}.')
+        if skipped:
+            print(f'Skipped (name or shape does not match): {skipped}')
+        if not_initialized:
+            print(f'Not initialized from the file (random init): {not_initialized}')
 
     def freeze_finbert(self):
         # Freeze embedding

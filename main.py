@@ -28,6 +28,7 @@ if __name__ == '__main__':
 
     # Model
     parser.add_argument('--backbone', type = str, default = '.', help = 'The checkpoint of the tokenizer.')
+    parser.add_argument('--init_weights', type = str, default = '', help = 'Path to the current LongFinBERT weights (pytorch_model.bin, a training checkpoint .pt, or a directory containing pytorch_model.bin). If given, the model is initialized with these weights instead of FinBERT.')
     
     # Data
     parser.add_argument('--max_len', type = int, default = 10_000, help = 'The maximum sequence length.')
